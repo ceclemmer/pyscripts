@@ -1,28 +1,21 @@
 from datetime import date
 from datetime import datetime
-#from netmiko import ConnectHandler
-from netmiko import *
-import traceback
 import getpass
-import sys
-import time
+import grp
+import json
+import logging
+from netmiko import *
 import os
 import pwd
-import grp
 from shutil import make_archive
-import logging
-
-
-#TODO
-# Clean up imports
-# Add enumeration for device types
-# ?
-# profit
-
+import sys
+import time
+import traceback
 
 date = date.today()
 timestr = time.strftime("%Y-%m-%d-%H%M%S")
-did_error = False
+interactive_mode = False
+json_data = ''
 
 logging.basicConfig(filename=f'{date}-run.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s-%(levelname)s:%(message)s')
 
@@ -33,14 +26,13 @@ except IndexError as err:
     logging.exception(err)
     sys.exit()
 
-
-
 try:
-    os.mkdir(f"/tftp/{timestr}")
-except FileExistsError as err:
-    logging.error("TFTP archive directory already exists")
-    logging.exception(err)
-    sys.exit()
+    config_file = open('config.json')
+    json_data = json.load(config_file)
+    config_file.close()
+except Exception as err:
+    logging.info('No config file, running in interactive mode')
+    print('Error loading config, running in interactive mode')
 
 switch={
         'device_type':'',
@@ -54,13 +46,17 @@ switch={
         'auth_timeout':20
         }
 
-
-#get creds and TFTP server destination
-switch['username']=input("User name: ")
-switch['password']=getpass.getpass(prompt='Enter user password: ')
-switch['secret']=getpass.getpass(prompt='Enter enable password: ')
-tftp_server = input("Enter TFTP server ip: ")
-
+if interactive_mode:
+    #get creds and TFTP server destination
+    switch['username']=input("User name: ")
+    switch['password']=getpass.getpass(prompt='Enter user password: ')
+    switch['secret']=getpass.getpass(prompt='Enter enable password: ')
+    tftp_server = input("Enter TFTP server ip: ")
+else:
+    switch['username']=json_data['config']['username']
+    switch['password']=json_data['config']['password']
+    switch['secret']=json_data['config']['enable_password']
+    tftp_server = json_data['config']['tftp_server']
 
 try:
     with open(device_file) as f:
@@ -147,4 +143,4 @@ except FileNotFoundError as e:
     logging.error(f"{device_file} does not exist")
     logging.exception(e)
 
-make_archive(f'{date}','zip',root_dir=None, base_dir=f"/tftp/{timestr}")
+make_archive(f'{timestr}-archive','zip',root_dir=None, base_dir=f"/tftp/")
