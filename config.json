@@ -1,0 +1,9 @@
+{
+    "config": {
+            "username": "",
+            "password": "",
+            "enable_password": "",
+            "tftp_server" : ""
+    }
+
+}
